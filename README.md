@@ -1,53 +1,136 @@
-# shadowsocks-client
-![](https://img.shields.io/docker/automated/tedostrem/shadowsocks-client.svg)
-![](https://img.shields.io/docker/build/tedostrem/shadowsocks-client.svg)
+# proxy-client
 
-Dockerized Shadowsocks client with HTTP proxy and support for salsa20/chacha20.
+Dockerized Trojan proxy client with HTTP and SOCKS5 proxy support.
 
-Exposes a privoxy HTTP proxy which can be set as system proxy or 
-used by other docker containers that need proxying through shaodowsocks.
+Uses [trojan-go](https://github.com/p4gefau1t/trojan-go) as the Trojan client and
+[Privoxy](https://www.privoxy.org/) as the HTTP proxy, supporting WebSocket and MUX.
 
-Also check out the compatible [shadowsocks-server](https://github.com/tedostrem/shadowsocks-server)
+## Architecture
 
-## Install helper script
 ```
-$ edit ./proxy              # Insert your server details at the top of the file. 
-$ echo `make` >> ~/.bashrc  # Will install script to ~/bin and set your path accordingly.
-```
-*You probbly want to persist your path in your .bashrc*
-
-## Helper script usage
-```
-$ eval `proxy on`    # Will start shadowsocks-client container and set http_proxy environment variables.
-$ eval `proxy off`   # Removes container and unsets http_proxy environment variables.
-```
-*The first time the script is run it will take some time to download image from
-docker hub. Output is redirected to /dev/null since stdout is used to eval 
-environment variables once container is started.*
-
-## Run a proxied docker container
-```
-$ docker run -it `proxy docker` ubuntu:14.04 bash # Runs a proxied docker container. 
+Browser / App
+      │
+      ├──→ HTTP  proxy  (Privoxy,  port 8118)
+      │         │
+      │         └──→ SOCKS5 (trojan-go, port 1080) ──→ Trojan Server
+      │
+      └──→ SOCKS5 proxy (trojan-go, port 1080) ──→ Trojan Server
 ```
 
-## Running manually
+## Quick Start
+
+### Build
+
+```bash
+docker build -t proxy-client .
 ```
+
+### Run with environment variables
+
+```bash
 docker run -d \
-	--name shadowsocks-client \
-	-p ${HTTP_PROXY_PORT}:8118 
-	tedostrem/shadowsocks-client \
-		-b 0.0.0.0 \
-		-s ${SS_SERVER_ADDRESS} \
-		-p ${SS_SERVER_PORT} \
-		-l ${SS_SOCKS5_PORT} \
-		-k ${SS_PASSWORD} \
-		-m ${SS_ENCRYPTION_METHOD}
+    --name proxy-client \
+    -p 1080:1080 \
+    -p 8118:8118 \
+    -e TROJAN_REMOTE_ADDR=your-server.com \
+    -e TROJAN_REMOTE_PORT=443 \
+    -e TROJAN_PASSWORD=your-password \
+    proxy-client
 ```
 
-## Manually run a proxied container
+### Run with custom config file
+
+Mount your own `config.json` to skip auto-generation:
+
+```bash
+docker run -d \
+    --name proxy-client \
+    -p 1080:1080 \
+    -p 8118:8118 \
+    -v /path/to/config.json:/etc/trojan-go/config.json \
+    proxy-client
 ```
-docker run -it --link shadowsocks-client \
-	-e http_proxy=shadowsocks:8118 \
-	-e https_proxy=shadowsocks:8118 \
-	centos bash
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `TROJAN_REMOTE_ADDR` | `example.com` | Trojan server address |
+| `TROJAN_REMOTE_PORT` | `443` | Trojan server port |
+| `TROJAN_PASSWORD` | `password` | Trojan password |
+| `TROJAN_SNI` | Same as `TROJAN_REMOTE_ADDR` | TLS SNI hostname |
+| `TROJAN_SSL_VERIFY` | `true` | Verify server TLS certificate |
+| `TROJAN_WS_ENABLED` | `false` | Enable WebSocket transport |
+| `TROJAN_WS_PATH` | `/` | WebSocket path |
+| `TROJAN_WS_HOST` | Same as `TROJAN_SNI` | WebSocket Host header |
+| `TROJAN_MUX_ENABLED` | `false` | Enable connection multiplexing |
+| `LOCAL_ADDR` | `0.0.0.0` | Local SOCKS5 listen address |
+| `LOCAL_PORT` | `1080` | Local SOCKS5 listen port |
+
+## Exposed Ports
+
+| Port | Protocol | Service |
+|---|---|---|
+| 1080 | SOCKS5 | trojan-go local proxy |
+| 8118 | HTTP | Privoxy HTTP proxy |
+
+## Helper Script
+
+Install the helper script:
+
+```bash
+$ vi ./proxy              # Fill in your trojan server details at the top
+$ echo `make` >> ~/.bashrc
+```
+
+Usage:
+
+```bash
+$ eval `proxy on`     # Start container and set http_proxy env vars
+$ eval `proxy off`    # Stop container and unset env vars
+```
+
+Run a proxied Docker container:
+
+```bash
+$ docker run -it `proxy docker` ubuntu:22.04 bash
+```
+
+## WebSocket Example
+
+For CDN-proxied Trojan nodes:
+
+```bash
+docker run -d \
+    --name proxy-client \
+    -p 1080:1080 \
+    -p 8118:8118 \
+    -e TROJAN_REMOTE_ADDR=cdn-node.example.com \
+    -e TROJAN_REMOTE_PORT=443 \
+    -e TROJAN_PASSWORD=your-password \
+    -e TROJAN_SNI=your-domain.com \
+    -e TROJAN_WS_ENABLED=true \
+    -e TROJAN_WS_PATH=/ws \
+    proxy-client
+```
+
+## Using the Proxy
+
+HTTP proxy:
+
+```bash
+curl -x http://localhost:8118 https://httpbin.org/ip
+```
+
+SOCKS5 proxy:
+
+```bash
+curl --socks5 localhost:1080 https://httpbin.org/ip
+```
+
+Set system-wide:
+
+```bash
+export http_proxy=http://localhost:8118
+export https_proxy=http://localhost:8118
 ```
