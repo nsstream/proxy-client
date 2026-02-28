@@ -19,15 +19,49 @@ Browser / App
 
 ## Quick Start
 
-### Build
+### Docker Compose（推荐）
+
+1. 编辑 `docker-compose.yml`，填入你的 Trojan 节点信息
+2. 启动：
+
+```bash
+docker compose up -d
+```
+
+查看日志：
+
+```bash
+docker compose logs -f
+```
+
+停止：
+
+```bash
+docker compose down
+```
+
+#### 使用自定义配置文件
+
+如果你需要完全自定义 trojan-go 配置，创建 `trojan-config.json` 然后修改 `docker-compose.yml`：
+
+```yaml
+services:
+  proxy-client:
+    build: .
+    container_name: proxy-client
+    restart: unless-stopped
+    ports:
+      - "1080:1080"
+      - "8118:8118"
+    volumes:
+      - ./trojan-config.json:/etc/trojan-go/config.json
+```
+
+### Docker Run
 
 ```bash
 docker build -t proxy-client .
-```
 
-### Run with environment variables
-
-```bash
 docker run -d \
     --name proxy-client \
     -p 1080:1080 \
@@ -38,9 +72,7 @@ docker run -d \
     proxy-client
 ```
 
-### Run with custom config file
-
-Mount your own `config.json` to skip auto-generation:
+挂载自定义配置文件：
 
 ```bash
 docker run -d \

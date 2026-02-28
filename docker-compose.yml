@@ -1,0 +1,22 @@
+services:
+  proxy-client:
+    build: .
+    # image: proxy-client  # 使用预构建镜像时取消注释，并注释掉 build
+    container_name: proxy-client
+    restart: unless-stopped
+    ports:
+      - "1080:1080"   # SOCKS5 代理
+      - "8118:8118"   # HTTP 代理
+    environment:
+      - TROJAN_REMOTE_ADDR=your-server.com
+      - TROJAN_REMOTE_PORT=443
+      - TROJAN_PASSWORD=your-password
+      # - TROJAN_SNI=your-domain.com        # 默认同 TROJAN_REMOTE_ADDR
+      # - TROJAN_SSL_VERIFY=true             # 是否验证服务器证书
+      # - TROJAN_WS_ENABLED=false            # 启用 WebSocket 传输
+      # - TROJAN_WS_PATH=/                   # WebSocket 路径
+      # - TROJAN_WS_HOST=your-domain.com     # WebSocket Host 头
+      # - TROJAN_MUX_ENABLED=false           # 启用多路复用
+    # 如需挂载自定义配置文件，取消以下注释并注释掉上面的 environment 部分
+    # volumes:
+    #   - ./trojan-config.json:/etc/trojan-go/config.json
