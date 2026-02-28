@@ -1,46 +1,46 @@
 #!/usr/bin/env bash
 set -e
-SS_SERVER_ADDRESS=
-SS_SERVER_PORT=
-SS_PASSWORD=
-SS_ENCRYPTION_METHOD=salsa20
+
+# ========== Trojan Node Configuration ==========
+TROJAN_REMOTE_ADDR=
+TROJAN_REMOTE_PORT=443
+TROJAN_PASSWORD=
+TROJAN_SNI=
+TROJAN_SSL_VERIFY=true
+# Websocket (set TROJAN_WS_ENABLED=true to enable)
+TROJAN_WS_ENABLED=false
+TROJAN_WS_PATH=/
+# MUX multiplexing
+TROJAN_MUX_ENABLED=false
+# ========== Local Proxy Ports ==========
 SOCKS5_PROXY_PORT=1080
 HTTP_PROXY_PORT=8118
+# ========== Docker Settings ==========
+CONTAINER_NAME=proxy-client
+IMAGE_NAME=proxy-client
 
-function logs_shadowsocks-client() {
-	docker logs -f shadowsocks-client
+function logs_proxy() {
+	docker logs -f ${CONTAINER_NAME}
 }
 
-function rm_shadowsocks-client() {
-	docker rm -f shadowsocks-client &> /dev/null || true
+function rm_proxy() {
+	docker rm -f ${CONTAINER_NAME} &> /dev/null || true
 }
 
-function run_shadowsocks-client() {
-	docker rm -f shadowsocks-client &> /dev/null || true
-	docker run -d --name shadowsocks-client \
+function run_proxy() {
+	rm_proxy
+	docker run -d --name ${CONTAINER_NAME} \
 		-p ${SOCKS5_PROXY_PORT}:1080 \
 		-p ${HTTP_PROXY_PORT}:8118 \
-		tedostrem/shadowsocks-client \
-			-b 0.0.0.0 \
-			-s ${SS_SERVER_ADDRESS} \
-			-p ${SS_SERVER_PORT} \
-			-l 1080 \
-			-k ${SS_PASSWORD} \
-			-m ${SS_ENCRYPTION_METHOD} &> /dev/null
-}
-
-function gproxy_on() {
-	gsettings set org.gnome.system.proxy.http host 'localhost'
-	gsettings set org.gnome.system.proxy.http port ${HTTP_PROXY_PORT}
-	gsettings set org.gnome.system.proxy.https host 'localhost'
-	gsettings set org.gnome.system.proxy.https port ${HTTP_PROXY_PORT}
-	gsettings set org.gnome.system.proxy.ftp host 'localhost'
-	gsettings set org.gnome.system.proxy.ftp port ${HTTP_PROXY_PORT}
-	gsettings set org.gnome.system.proxy mode 'manual'
-}
-
-function gproxy_off() {
-	gsettings set org.gnome.system.proxy mode 'none'
+		-e TROJAN_REMOTE_ADDR=${TROJAN_REMOTE_ADDR} \
+		-e TROJAN_REMOTE_PORT=${TROJAN_REMOTE_PORT} \
+		-e TROJAN_PASSWORD=${TROJAN_PASSWORD} \
+		-e TROJAN_SNI=${TROJAN_SNI:-$TROJAN_REMOTE_ADDR} \
+		-e TROJAN_SSL_VERIFY=${TROJAN_SSL_VERIFY} \
+		-e TROJAN_WS_ENABLED=${TROJAN_WS_ENABLED} \
+		-e TROJAN_WS_PATH=${TROJAN_WS_PATH} \
+		-e TROJAN_MUX_ENABLED=${TROJAN_MUX_ENABLED} \
+		${IMAGE_NAME} &> /dev/null
 }
 
 function proxy_on() {
@@ -51,38 +51,29 @@ function proxy_off() {
 	echo "unset http_proxy https_proxy"
 }
 
-if [ -z "$1" ];
-then
-	echo "on,off,state,logs"
+if [ -z "$1" ]; then
+	echo "Usage: proxy {on|off|logs|docker}"
 	exit 0
 fi
-if [ "$1" == "on" ];
-then
-	rm_shadowsocks-client
-	run_shadowsocks-client
-	proxy_on
-	gproxy_on
-fi
-if [ "$1" == "off" ];
-then
-	rm_shadowsocks-client
-	proxy_off
-	gproxy_off
-fi
-if [ "$1" == "docker" ];
-then
-	echo "--link shadowsocks-client -e http_proxy=shadowsocks-client:${HTTP_PROXY_PORT} -e https_proxy=shadowsocks-client:${HTTP_PROXY_PORT}"
-fi
-if [ "$1" == "logs" ];
-then
-	logs_shadowsocks-client
-fi
-if [ "$1" == "state" ];
-then
-	if [ "$(gsettings get org.gnome.system.proxy mode)" == "'manual'" ];
-	then
-		echo "ON"
-	else
-		echo "OFF"
-	fi
-fi
+
+case "$1" in
+	on)
+		rm_proxy
+		run_proxy
+		proxy_on
+		;;
+	off)
+		rm_proxy
+		proxy_off
+		;;
+	docker)
+		echo "--link ${CONTAINER_NAME} -e http_proxy=${CONTAINER_NAME}:${HTTP_PROXY_PORT} -e https_proxy=${CONTAINER_NAME}:${HTTP_PROXY_PORT}"
+		;;
+	logs)
+		logs_proxy
+		;;
+	*)
+		echo "Usage: proxy {on|off|logs|docker}"
+		exit 1
+		;;
+esac
