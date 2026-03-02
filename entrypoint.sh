@@ -9,6 +9,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
     TROJAN_PASSWORD="${TROJAN_PASSWORD:-password}"
     TROJAN_SNI="${TROJAN_SNI:-$TROJAN_REMOTE_ADDR}"
     TROJAN_SSL_VERIFY="${TROJAN_SSL_VERIFY:-true}"
+    TROJAN_SSL_VERIFY_HOSTNAME="${TROJAN_SSL_VERIFY_HOSTNAME:-$TROJAN_SSL_VERIFY}"
     TROJAN_WS_ENABLED="${TROJAN_WS_ENABLED:-false}"
     TROJAN_WS_PATH="${TROJAN_WS_PATH:-/}"
     TROJAN_WS_HOST="${TROJAN_WS_HOST:-$TROJAN_SNI}"
@@ -26,7 +27,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
 	    "password": ["${TROJAN_PASSWORD}"],
 	    "ssl": {
 	        "verify": ${TROJAN_SSL_VERIFY},
-	        "verify_hostname": true,
+	        "verify_hostname": ${TROJAN_SSL_VERIFY_HOSTNAME},
 	        "sni": "${TROJAN_SNI}",
 	        "session_ticket": true,
 	        "reuse_session": true,

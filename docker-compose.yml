@@ -12,7 +12,8 @@ services:
       - TROJAN_REMOTE_PORT=443
       - TROJAN_PASSWORD=your-password
       # - TROJAN_SNI=your-domain.com        # 默认同 TROJAN_REMOTE_ADDR
-      # - TROJAN_SSL_VERIFY=true             # 是否验证服务器证书
+      # - TROJAN_SSL_VERIFY=true             # 是否验证服务器 TLS 证书
+      # - TROJAN_SSL_VERIFY_HOSTNAME=true    # 是否验证证书主机名（默认跟随 SSL_VERIFY）
       # - TROJAN_WS_ENABLED=false            # 启用 WebSocket 传输
       # - TROJAN_WS_PATH=/                   # WebSocket 路径
       # - TROJAN_WS_HOST=your-domain.com     # WebSocket Host 头

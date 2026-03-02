@@ -92,6 +92,7 @@ docker run -d \
 | `TROJAN_PASSWORD` | `password` | Trojan password |
 | `TROJAN_SNI` | Same as `TROJAN_REMOTE_ADDR` | TLS SNI hostname |
 | `TROJAN_SSL_VERIFY` | `true` | Verify server TLS certificate |
+| `TROJAN_SSL_VERIFY_HOSTNAME` | Same as `TROJAN_SSL_VERIFY` | Verify certificate hostname matches SNI |
 | `TROJAN_WS_ENABLED` | `false` | Enable WebSocket transport |
 | `TROJAN_WS_PATH` | `/` | WebSocket path |
 | `TROJAN_WS_HOST` | Same as `TROJAN_SNI` | WebSocket Host header |
@@ -166,3 +167,20 @@ Set system-wide:
 export http_proxy=http://localhost:8118
 export https_proxy=http://localhost:8118
 ```
+
+## Troubleshooting
+
+### 连接建立后 `sent: 0 B recv: 0 B`
+
+日志中看到连接被建立但数据量为零，通常是 **Trojan 服务端认证失败**：
+
+1. **检查密码** — Trojan 协议在密码不匹配时会静默断开连接
+2. **关闭证书验证** — 如果服务端使用自签名证书或 IP 直连：
+   ```yaml
+   TROJAN_SSL_VERIFY=false
+   ```
+3. **检查 SNI** — 确保 `TROJAN_SNI` 与服务端证书域名一致。如果通过 CDN/IP 访问，SNI 需要设为证书上的域名而非实际地址
+
+### 首批连接有数据，后续全部 0 B
+
+Trojan 服务端检测到无效认证后触发了防探测机制，拒绝后续连接。先修正密码和 TLS 配置再重试。
